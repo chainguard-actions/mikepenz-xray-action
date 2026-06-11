@@ -8,6 +8,7 @@ Hardened by [Chainguard](https://www.chainguard.dev) from the upstream action at
 
 | Version | Tag | Upstream commit |
 |---------|-----|-----------------|
+| v4.0.0 | [`v4.0.0`](https://github.com/chainguard-actions/mikepenz-xray-action/tree/v4.0.0) | [`b52d73a`](https://github.com/mikepenz/xray-action/commit/b52d73af8012b21cefeb2dfe8f77e35a3b735e3b) |
 | v4.0.1 | [`v4.0.1`](https://github.com/chainguard-actions/mikepenz-xray-action/tree/v4.0.1) | [`25ef4a0`](https://github.com/mikepenz/xray-action/commit/25ef4a01d6e2e5b0fcafa75fa23d3412af39f2af) |
 
 ## Privacy
