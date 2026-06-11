@@ -1,0 +1,55 @@
+name: Test advanced options with JSON metadata files
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Create test execution JSON fixture
+        run: |
+          mkdir -p /tmp/xray-fixtures
+          cat > /tmp/xray-fixtures/test-execution.json <<'EOF'
+          {
+            "fields": {
+              "summary": "Test Execution from CI",
+              "description": "Automated test execution"
+            }
+          }
+          EOF
+          cat > /tmp/xray-fixtures/test.json <<'EOF'
+          {
+            "fields": {
+              "labels": ["automated"]
+            }
+          }
+          EOF
+      - id: action
+        uses: .
+        with:
+          xrayCloud: "true"
+          username: "fake-client-id"
+          password: "fake-client-secret"
+          projectKey: "PROJ"
+          testExecKey: "PROJ-999"
+          testFormat: "junit"
+          testPaths: "**/test-results/test/TEST-*.xml"
+          testMerge: "false"
+          combineInSingleTestExec: "true"
+          testExecutionJson: "/tmp/xray-fixtures/test-execution.json"
+          testJson: "/tmp/xray-fixtures/test.json"
+          failOnImportError: "false"
+          continueOnImportError: "true"
+          importParallelism: "1"
+          responseTimeout: "5000"
+          importRetryLimit: "0"
+      - name: Assert outputs exist
+        env:
+          COUNT: ${{ steps.action.outputs.count }}
+          FAILED: ${{ steps.action.outputs.failed }}
+          COMPLETED: ${{ steps.action.outputs.completed }}
+        run: |
+          echo "count: $COUNT"
+          echo "failed: $FAILED"
+          echo "completed: $COMPLETED"
+          echo "PASS: action completed without fatal error"

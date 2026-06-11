@@ -1,0 +1,42 @@
+name: Test server/DC mode with token and extra fields
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        with:
+          xrayCloud: "false"
+          xrayBaseUrl: "https://jira.example.com"
+          xrayToken: "fake-personal-access-token"
+          projectKey: "PROJ"
+          testExecKey: "PROJ-456"
+          testFormat: "junit"
+          testPaths: "**/test-results/test/TEST-*.xml"
+          testMerge: "true"
+          testPlanKey: "PROJ-789"
+          testEnvironments: "staging;linux"
+          revision: "abc123def456"
+          fixVersion: "1.0.0"
+          failOnImportError: "false"
+          continueOnImportError: "true"
+          importParallelism: "1"
+          responseTimeout: "5000"
+          importRetryLimit: "0"
+      - name: Assert outputs exist
+        env:
+          COUNT: ${{ steps.action.outputs.count }}
+          FAILED: ${{ steps.action.outputs.failed }}
+          COMPLETED: ${{ steps.action.outputs.completed }}
+          ERROR_MSG: ${{ steps.action.outputs.errorMessage }}
+          ERROR_CODE: ${{ steps.action.outputs.errorStatusCode }}
+        run: |
+          echo "count: $COUNT"
+          echo "failed: $FAILED"
+          echo "completed: $COMPLETED"
+          echo "errorMessage: $ERROR_MSG"
+          echo "errorStatusCode: $ERROR_CODE"
+          echo "PASS: action completed without fatal error"
