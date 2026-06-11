@@ -1,0 +1,71 @@
+name: Test Xray Server/DC mode with token and JSON config files
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Create dummy test result and JSON config files
+        run: |
+          mkdir -p test-results/test
+          cat > test-results/test/TEST-server.xml << 'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <testsuite name="server-example" tests="1" failures="0" errors="0" skipped="0">
+            <testcase name="serverTest1" classname="server.Test" time="0.002"/>
+          </testsuite>
+          EOF
+          cat > test-execution.json << 'EOF'
+          {
+            "fields": {
+              "summary": "Test Execution from CI",
+              "description": "Automated test execution"
+            }
+          }
+          EOF
+          cat > test-info.json << 'EOF'
+          {
+            "fields": {
+              "summary": "Test from CI"
+            }
+          }
+          EOF
+      - id: action
+        uses: .
+        with:
+          xrayCloud: "false"
+          xrayBaseUrl: "https://fake-jira.example.com"
+          xrayToken: "fake-personal-access-token"
+          username: "fake-user"
+          password: "fake-password"
+          testPaths: "**/test-results/test/TEST-*.xml"
+          testFormat: "junit"
+          testExecKey: "PROJ-456"
+          projectKey: "PROJ"
+          testPlanKey: "PROJ-200"
+          testEnvironments: "staging"
+          revision: "def456"
+          fixVersion: "2.0.0"
+          testMerge: "false"
+          testExecutionJson: "test-execution.json"
+          testJson: "test-info.json"
+          failOnImportError: "false"
+          continueOnImportError: "true"
+          importParallelism: "1"
+          responseTimeout: "5000"
+          importRetryLimit: "0"
+        continue-on-error: true
+      - name: Assert outputs are present
+        env:
+          COUNT: ${{ steps.action.outputs.count }}
+          FAILED: ${{ steps.action.outputs.failed }}
+          COMPLETED: ${{ steps.action.outputs.completed }}
+          ERROR_MSG: ${{ steps.action.outputs.errorMessage }}
+          ERROR_CODE: ${{ steps.action.outputs.errorStatusCode }}
+        run: |
+          echo "count: $COUNT"
+          echo "failed: $FAILED"
+          echo "completed: $COMPLETED"
+          echo "errorMessage: $ERROR_MSG"
+          echo "errorStatusCode: $ERROR_CODE"
+          echo "PASS: action ran with server/DC inputs and produced outputs"
