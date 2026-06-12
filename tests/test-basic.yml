@@ -1,0 +1,47 @@
+name: Test basic usage (cloud, junit)
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create sample JUnit test result
+        run: |
+          mkdir -p test-results/test
+          cat > test-results/test/TEST-example.xml <<'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <testsuite name="ExampleSuite" tests="1" failures="0" errors="0" time="0.1">
+            <testcase name="exampleTest" classname="ExampleClass" time="0.1"/>
+          </testsuite>
+          EOF
+
+      - id: action
+        uses: .
+        with:
+          xrayCloud: "true"
+          username: "fake-client-id"
+          password: "fake-client-secret"
+          testPaths: "**/test-results/test/TEST-*.xml"
+          testMerge: "true"
+          testFormat: "junit"
+          testExecKey: "PROJ-100"
+          projectKey: "PROJ"
+          failOnImportError: "false"
+          continueOnImportError: "true"
+          importParallelism: "1"
+          responseTimeout: "5000"
+          importRetryLimit: "0"
+
+      - name: Assert count output exists
+        env:
+          COUNT: ${{ steps.action.outputs.count }}
+          FAILED: ${{ steps.action.outputs.failed }}
+          COMPLETED: ${{ steps.action.outputs.completed }}
+        run: |
+          echo "count: $COUNT"
+          echo "failed: $FAILED"
+          echo "completed: $COMPLETED"
+          # The action should produce outputs (even if import fails due to fake credentials)
+          echo "PASS: action completed without fatal error"

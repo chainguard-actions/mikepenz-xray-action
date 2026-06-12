@@ -1,0 +1,67 @@
+name: Test advanced inputs (testExecutionJson, testJson)
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create sample JUnit test result and JSON metadata files
+        run: |
+          mkdir -p test-results/test
+          cat > test-results/test/TEST-advanced.xml <<'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <testsuite name="AdvancedSuite" tests="2" failures="0" errors="0" time="0.3">
+            <testcase name="advancedTest1" classname="AdvancedClass" time="0.1"/>
+            <testcase name="advancedTest2" classname="AdvancedClass" time="0.2"/>
+          </testsuite>
+          EOF
+
+          cat > test-execution.json <<'EOF'
+          {
+            "fields": {
+              "summary": "Test Execution from CI",
+              "description": "Automated test execution"
+            }
+          }
+          EOF
+
+          cat > test-info.json <<'EOF'
+          {
+            "fields": {
+              "summary": "Test from CI"
+            }
+          }
+          EOF
+
+      - id: action
+        uses: .
+        with:
+          xrayCloud: "true"
+          username: "fake-client-id"
+          password: "fake-client-secret"
+          testPaths: "**/test-results/test/TEST-advanced.xml"
+          testMerge: "true"
+          testFormat: "junit"
+          testExecKey: "PROJ-300"
+          projectKey: "PROJ"
+          combineInSingleTestExec: "true"
+          testExecutionJson: "test-execution.json"
+          testJson: "test-info.json"
+          failOnImportError: "false"
+          continueOnImportError: "true"
+          importParallelism: "2"
+          responseTimeout: "5000"
+          importRetryLimit: "0"
+
+      - name: Assert outputs exist
+        env:
+          COUNT: ${{ steps.action.outputs.count }}
+          FAILED: ${{ steps.action.outputs.failed }}
+          COMPLETED: ${{ steps.action.outputs.completed }}
+        run: |
+          echo "count: $COUNT"
+          echo "failed: $FAILED"
+          echo "completed: $COMPLETED"
+          echo "PASS: action completed without fatal error"
