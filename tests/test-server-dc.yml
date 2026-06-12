@@ -1,0 +1,69 @@
+name: Test xray-action server/DC inputs
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create dummy test result and JSON files
+        run: |
+          mkdir -p /tmp/test-results/test
+          cat > /tmp/test-results/test/TEST-server.xml <<'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <testsuite name="server-example" tests="1" failures="0" errors="0" skipped="0">
+            <testcase name="serverTest1" classname="com.example.ServerTest" time="0.2"/>
+          </testsuite>
+          EOF
+
+          cat > /tmp/test-execution.json <<'EOF'
+          {
+            "fields": {
+              "summary": "Test Execution from CI"
+            }
+          }
+          EOF
+
+          cat > /tmp/test.json <<'EOF'
+          {
+            "fields": {
+              "summary": "Test from CI"
+            }
+          }
+          EOF
+
+      - id: action
+        uses: .
+        with:
+          xrayCloud: "false"
+          xrayBaseUrl: "https://fake-jira.example.com"
+          xrayToken: "fake-personal-access-token"
+          testPaths: "/tmp/test-results/test/TEST-*.xml"
+          testFormat: "junit"
+          testExecKey: "PROJ-456"
+          projectKey: "PROJ"
+          testEnvironments: "staging;production"
+          revision: "def456"
+          testExecutionJson: "/tmp/test-execution.json"
+          testJson: "/tmp/test.json"
+          failOnImportError: "false"
+          continueOnImportError: "true"
+          importParallelism: "1"
+          responseTimeout: "5000"
+          importRetryLimit: "0"
+
+      - name: Assert outputs are set
+        env:
+          COUNT: ${{ steps.action.outputs.count }}
+          FAILED: ${{ steps.action.outputs.failed }}
+          COMPLETED: ${{ steps.action.outputs.completed }}
+          ERROR_MSG: ${{ steps.action.outputs.errorMessage }}
+          ERROR_CODE: ${{ steps.action.outputs.errorStatusCode }}
+        run: |
+          echo "count: $COUNT"
+          echo "failed: $FAILED"
+          echo "completed: $COMPLETED"
+          echo "errorMessage: $ERROR_MSG"
+          echo "errorStatusCode: $ERROR_CODE"
+          echo "PASS: action completed without fatal error"

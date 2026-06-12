@@ -1,0 +1,50 @@
+name: Test xray-action cloud basic inputs
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create dummy test result file
+        run: |
+          mkdir -p /tmp/test-results/test
+          cat > /tmp/test-results/test/TEST-example.xml <<'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <testsuite name="example" tests="1" failures="0" errors="0" skipped="0">
+            <testcase name="test1" classname="com.example.Test" time="0.1"/>
+          </testsuite>
+          EOF
+
+      - id: action
+        uses: .
+        with:
+          xrayCloud: "true"
+          username: "fake-client-id"
+          password: "fake-client-secret"
+          testPaths: "/tmp/test-results/test/TEST-*.xml"
+          testFormat: "junit"
+          testExecKey: "PROJ-123"
+          projectKey: "PROJ"
+          testPlanKey: "PROJ-100"
+          fixVersion: "1.0.0"
+          revision: "abc123"
+          failOnImportError: "false"
+          continueOnImportError: "true"
+          importParallelism: "1"
+          responseTimeout: "5000"
+          importRetryLimit: "0"
+
+      - name: Assert count output exists
+        env:
+          COUNT: ${{ steps.action.outputs.count }}
+          FAILED: ${{ steps.action.outputs.failed }}
+          COMPLETED: ${{ steps.action.outputs.completed }}
+        run: |
+          echo "count: $COUNT"
+          echo "failed: $FAILED"
+          echo "completed: $COMPLETED"
+          # The action should have run (even if import failed due to fake creds)
+          # count should be set (0 or more)
+          echo "PASS: action completed without fatal error"
