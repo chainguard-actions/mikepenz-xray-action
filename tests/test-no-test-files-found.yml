@@ -1,0 +1,44 @@
+name: Test no test files found
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: xray
+        uses: .
+        with:
+          xrayCloud: "false"
+          xrayBaseUrl: "http://localhost:19999"
+          username: "fake-user"
+          password: "fake-pass"
+          testPaths: "**/nonexistent-path/TEST-*.xml"
+          testFormat: "junit"
+          testExecKey: "PROJ-1"
+          projectKey: "PROJ"
+          failOnImportError: "false"
+          continueOnImportError: "true"
+          importParallelism: "1"
+          responseTimeout: "3000"
+          importRetryLimit: "0"
+        continue-on-error: true
+
+      - name: Assert count is zero when no files found
+        env:
+          COUNT: ${{ steps.xray.outputs.count }}
+          FAILED: ${{ steps.xray.outputs.failed }}
+          COMPLETED: ${{ steps.xray.outputs.completed }}
+        run: |
+          echo "count: $COUNT"
+          echo "failed: $FAILED"
+          echo "completed: $COMPLETED"
+          # When no files match the glob, count should be 0 and no imports attempted
+          # failed=0, completed=0
+          if [ "$COUNT" = "0" ] || [ -z "$COUNT" ]; then
+            echo "PASS: count is 0 or empty as expected when no files found"
+          else
+            echo "FAIL: expected count=0 when no test files match the glob, got '$COUNT'"
+            exit 1
+          fi

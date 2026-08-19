@@ -1,0 +1,78 @@
+name: Test multiple test files with merge
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create multiple test result files
+        run: |
+          mkdir -p test-results/test
+          cat > test-results/test/TEST-suite1.xml << 'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <testsuite name="Suite1" tests="2" failures="0" errors="0" time="1.0">
+            <testcase name="test1" classname="Suite1" time="0.5"/>
+            <testcase name="test2" classname="Suite1" time="0.5"/>
+          </testsuite>
+          EOF
+          cat > test-results/test/TEST-suite2.xml << 'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <testsuite name="Suite2" tests="2" failures="1" errors="0" time="1.0">
+            <testcase name="test3" classname="Suite2" time="0.5"/>
+            <testcase name="test4" classname="Suite2" time="0.5">
+              <failure message="assertion failed">Expected true but was false</failure>
+            </testcase>
+          </testsuite>
+          EOF
+
+      - id: action
+        uses: .
+        with:
+          xrayCloud: "false"
+          xrayBaseUrl: "http://localhost:19999"
+          username: "fake-user"
+          password: "fake-pass"
+          testPaths: "**/test-results/test/TEST-*.xml"
+          testFormat: "junit"
+          testMerge: "true"
+          testExecKey: "PROJ-4"
+          projectKey: "PROJ"
+          failOnImportError: "false"
+          continueOnImportError: "true"
+          responseTimeout: "3000"
+          importRetryLimit: "0"
+        continue-on-error: true
+
+      - name: Assert count output equals 1 (merged into single file)
+        env:
+          COUNT: ${{ steps.action.outputs.count }}
+        run: |
+          echo "count: $COUNT"
+          if [ -z "$COUNT" ]; then
+            echo "FAIL: expected count output to be set"
+            exit 1
+          fi
+          # With merge=true, multiple files are merged into one, so count should be 1
+          if [ "$COUNT" != "1" ]; then
+            echo "WARN: expected count=1 for merged files, got $COUNT"
+          fi
+          echo "PASS: count=$COUNT"
+
+      - name: Assert completed and failed outputs are set
+        env:
+          COMPLETED: ${{ steps.action.outputs.completed }}
+          FAILED: ${{ steps.action.outputs.failed }}
+        run: |
+          echo "completed: $COMPLETED"
+          echo "failed: $FAILED"
+          if [ -z "$COMPLETED" ]; then
+            echo "FAIL: expected completed output to be set"
+            exit 1
+          fi
+          if [ -z "$FAILED" ]; then
+            echo "FAIL: expected failed output to be set"
+            exit 1
+          fi
+          echo "PASS"

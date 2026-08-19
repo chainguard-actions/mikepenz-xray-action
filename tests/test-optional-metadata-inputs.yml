@@ -1,0 +1,91 @@
+name: Test optional metadata inputs (testPlanKey, revision, fixVersion, testEnvironments, testExecutionJson, testJson)
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create dummy JUnit test result
+        run: |
+          mkdir -p test-results/test
+          cat > test-results/test/TEST-example.xml <<'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <testsuite name="ExampleSuite" tests="1" failures="0" errors="0" skipped="0">
+            <testcase name="exampleTest" classname="com.example.ExampleTest" time="0.001"/>
+          </testsuite>
+          EOF
+
+      - name: Create testExecutionJson file
+        run: |
+          cat > test-execution.json <<'EOF'
+          {
+            "fields": {
+              "summary": "Test Execution from CI",
+              "description": "Automated test execution"
+            }
+          }
+          EOF
+
+      - name: Create testJson file
+        run: |
+          cat > test-info.json <<'EOF'
+          {
+            "fields": {
+              "labels": ["automated"]
+            }
+          }
+          EOF
+
+      - id: xray
+        uses: .
+        with:
+          xrayCloud: "false"
+          xrayBaseUrl: "http://localhost:19999"
+          username: "fake-user"
+          password: "fake-pass"
+          testPaths: "**/test-results/test/TEST-*.xml"
+          testFormat: "junit"
+          testExecKey: "PROJ-1"
+          projectKey: "PROJ"
+          testPlanKey: "PROJ-PLAN-1"
+          revision: "abc123def456"
+          fixVersion: "1.0.0"
+          testEnvironments: "staging;production"
+          testExecutionJson: "test-execution.json"
+          testJson: "test-info.json"
+          failOnImportError: "false"
+          continueOnImportError: "true"
+          importParallelism: "1"
+          responseTimeout: "3000"
+          importRetryLimit: "0"
+        continue-on-error: true
+
+      - name: Assert count output is set to 1
+        env:
+          COUNT: ${{ steps.xray.outputs.count }}
+        run: |
+          echo "count: $COUNT"
+          if [ "$COUNT" != "1" ]; then
+            echo "FAIL: expected count=1 (one test file found), got '$COUNT'"
+            exit 1
+          fi
+          echo "PASS: count is 1 as expected"
+
+      - name: Assert failed equals 1 and completed equals 0
+        env:
+          FAILED: ${{ steps.xray.outputs.failed }}
+          COMPLETED: ${{ steps.xray.outputs.completed }}
+        run: |
+          echo "failed: $FAILED"
+          echo "completed: $COMPLETED"
+          if [ "$FAILED" != "1" ]; then
+            echo "FAIL: expected failed=1 (import to localhost fails), got '$FAILED'"
+            exit 1
+          fi
+          if [ "$COMPLETED" != "0" ]; then
+            echo "FAIL: expected completed=0, got '$COMPLETED'"
+            exit 1
+          fi
+          echo "PASS: failed=1 and completed=0 as expected"

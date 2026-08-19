@@ -1,0 +1,72 @@
+name: Test merging multiple JUnit reports
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create multiple dummy JUnit test results
+        run: |
+          mkdir -p test-results/test
+          cat > test-results/test/TEST-suite1.xml <<'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <testsuite name="Suite1" tests="1" failures="0" errors="0" skipped="0">
+            <testcase name="test1" classname="com.example.Suite1" time="0.001"/>
+          </testsuite>
+          EOF
+          cat > test-results/test/TEST-suite2.xml <<'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <testsuite name="Suite2" tests="1" failures="0" errors="0" skipped="0">
+            <testcase name="test2" classname="com.example.Suite2" time="0.002"/>
+          </testsuite>
+          EOF
+
+      - id: xray
+        uses: .
+        with:
+          xrayCloud: "false"
+          xrayBaseUrl: "http://localhost:19999"
+          username: "fake-user"
+          password: "fake-pass"
+          testPaths: "**/test-results/test/TEST-*.xml"
+          testFormat: "junit"
+          testMerge: "true"
+          testExecKey: "PROJ-1"
+          projectKey: "PROJ"
+          failOnImportError: "false"
+          continueOnImportError: "true"
+          importParallelism: "1"
+          responseTimeout: "3000"
+          importRetryLimit: "0"
+        continue-on-error: true
+
+      - name: Assert action ran and produced outputs
+        env:
+          COUNT: ${{ steps.xray.outputs.count }}
+          FAILED: ${{ steps.xray.outputs.failed }}
+          COMPLETED: ${{ steps.xray.outputs.completed }}
+        run: |
+          echo "count: $COUNT"
+          echo "failed: $FAILED"
+          echo "completed: $COMPLETED"
+          # With testMerge=true, 2 files are merged into 1 before import
+          # count should be 1 (merged into single file), failed=1, completed=0
+          if [ -z "$COUNT" ] && [ -z "$FAILED" ] && [ -z "$COMPLETED" ]; then
+            echo "FAIL: expected at least one output to be set after running with multiple test files"
+            exit 1
+          fi
+          echo "PASS: action ran with multiple test files and testMerge=true"
+
+      - name: Assert count is 1 after merge
+        env:
+          COUNT: ${{ steps.xray.outputs.count }}
+        run: |
+          echo "count: $COUNT"
+          # With testMerge=true, 2 files are merged into 1, so count should be 1
+          if [ "$COUNT" != "1" ]; then
+            echo "FAIL: expected count=1 after merging 2 files, got '$COUNT'"
+            exit 1
+          fi
+          echo "PASS: count=1 as expected after merge"

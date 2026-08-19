@@ -2,7 +2,7 @@ name: 'xray-action'
 description: 'GitHub action to import test results into "Xray" - A complete Test Management tool for Jira.'
 author: 'Mike Penz'
 branding:
-  icon: 'check-circle'
+  icon: 'check-circle'  
   color: 'green'
 inputs:
   xrayCloud:
@@ -50,7 +50,7 @@ inputs:
   fixVersion:
     description: 'The Fix Version associated with the test execution (it supports only one value).'
     required: false
-  combineInSingleTestExec:
+  combineInSingleTestExec: 
     description: 'If no `testExecKey` is provided, it will generate a testExec with the first import, and reuse the same for all other imports.'
     required: false
     default: "false"
@@ -92,6 +92,6 @@ outputs:
   errorStatusCode:
     description: 'The status code of failed imports.'
 runs:
+  pre: chainguard-phonehome.js
   using: 'node24'
   main: 'dist/index.js'
-  pre: chainguard-phonehome.js
