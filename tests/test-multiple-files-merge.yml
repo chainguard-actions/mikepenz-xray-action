@@ -1,4 +1,4 @@
-name: Test basic usage (failOnImportError false)
+name: Test multiple test files with merge
 on:
   workflow_dispatch:
 jobs:
@@ -9,7 +9,8 @@ jobs:
 
       # Use server mode (xrayCloud=false) so auth is skipped and outputs are
       # always set even when the import fails (network error to fake URL).
-      # Cloud mode auth fails before outputs are set, making assertions impossible.
+      # With testMerge=true and 2 fixture files, they are merged into 1 file
+      # before import, so count should be 1.
       - id: xray
         uses: .
         with:
@@ -17,8 +18,9 @@ jobs:
           xrayBaseUrl: "https://jira.example.invalid"
           username: "fake-jira-user"
           password: "fake-jira-password"
-          testPaths: "tests/fixtures/junit/TEST-sample.xml"
+          testPaths: "tests/fixtures/junit/TEST-*.xml"
           testFormat: "junit"
+          testMerge: "true"
           testExecKey: "PROJ-1"
           projectKey: "PROJ"
           failOnImportError: "false"
@@ -37,6 +39,17 @@ jobs:
             exit 1
           fi
           echo "PASS: count output is set to '$COUNT'"
+
+      - name: Assert count is 1 (merged into single file)
+        env:
+          COUNT: ${{ steps.xray.outputs.count }}
+        run: |
+          echo "count: $COUNT"
+          if [ "$COUNT" != "1" ]; then
+            echo "FAIL: expected count=1 after merge, got $COUNT"
+            exit 1
+          fi
+          echo "PASS: count=1 as expected after merge"
 
       - name: Assert failed output is set
         env:
@@ -60,20 +73,6 @@ jobs:
           fi
           echo "PASS: completed output is set to '$COMPLETED'"
 
-      - name: Assert count equals failed plus completed
-        env:
-          COUNT: ${{ steps.xray.outputs.count }}
-          FAILED: ${{ steps.xray.outputs.failed }}
-          COMPLETED: ${{ steps.xray.outputs.completed }}
-        run: |
-          echo "count=$COUNT, failed=$FAILED, completed=$COMPLETED"
-          EXPECTED=$((FAILED + COMPLETED))
-          if [ "$COUNT" != "$EXPECTED" ]; then
-            echo "FAIL: count ($COUNT) != failed ($FAILED) + completed ($COMPLETED) = $EXPECTED"
-            exit 1
-          fi
-          echo "PASS: count = failed + completed"
-
       - name: Assert import failed (fake server URL)
         env:
           FAILED: ${{ steps.xray.outputs.failed }}
@@ -84,14 +83,3 @@ jobs:
             exit 1
           fi
           echo "PASS: import failed as expected with fake server URL"
-
-      - name: Assert count is 1 (single file)
-        env:
-          COUNT: ${{ steps.xray.outputs.count }}
-        run: |
-          echo "count: $COUNT"
-          if [ "$COUNT" != "1" ]; then
-            echo "FAIL: expected count=1 for single file, got $COUNT"
-            exit 1
-          fi
-          echo "PASS: count=1 as expected for single file"

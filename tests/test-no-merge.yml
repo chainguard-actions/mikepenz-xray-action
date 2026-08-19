@@ -1,0 +1,75 @@
+name: Test multiple test files without merge
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # Use server mode (xrayCloud=false) so auth is skipped and outputs are
+      # always set even when the import fails (network error to fake URL).
+      # With testMerge=false and 2 fixture files, each file is imported
+      # separately, so count should be 2.
+      - id: xray
+        uses: .
+        with:
+          xrayCloud: "false"
+          xrayBaseUrl: "https://jira.example.invalid"
+          username: "fake-jira-user"
+          password: "fake-jira-password"
+          testPaths: "tests/fixtures/junit/TEST-*.xml"
+          testFormat: "junit"
+          testMerge: "false"
+          testExecKey: "PROJ-1"
+          projectKey: "PROJ"
+          failOnImportError: "false"
+          continueOnImportError: "true"
+          importParallelism: "1"
+          responseTimeout: "5000"
+          importRetryLimit: "0"
+
+      - name: Assert count output is set
+        env:
+          COUNT: ${{ steps.xray.outputs.count }}
+        run: |
+          echo "count: $COUNT"
+          if [ -z "$COUNT" ]; then
+            echo "FAIL: expected 'count' output to be set"
+            exit 1
+          fi
+          echo "PASS: count output is set to '$COUNT'"
+
+      - name: Assert count is greater than 1 (no merge, 2 files)
+        env:
+          COUNT: ${{ steps.xray.outputs.count }}
+        run: |
+          echo "count: $COUNT"
+          if [ "$COUNT" -lt 2 ]; then
+            echo "FAIL: expected count>=2 without merge (2 fixture files), got $COUNT"
+            exit 1
+          fi
+          echo "PASS: count=$COUNT >= 2 as expected without merge"
+
+      - name: Assert failed output is set
+        env:
+          FAILED: ${{ steps.xray.outputs.failed }}
+        run: |
+          echo "failed: $FAILED"
+          if [ -z "$FAILED" ]; then
+            echo "FAIL: expected 'failed' output to be set"
+            exit 1
+          fi
+          echo "PASS: failed output is set to '$FAILED'"
+
+      - name: Assert all imports failed (fake server URL, no retry)
+        env:
+          COUNT: ${{ steps.xray.outputs.count }}
+          FAILED: ${{ steps.xray.outputs.failed }}
+        run: |
+          echo "count=$COUNT, failed=$FAILED"
+          if [ "$FAILED" != "$COUNT" ]; then
+            echo "FAIL: expected all $COUNT imports to fail with fake server URL, but only $FAILED failed"
+            exit 1
+          fi
+          echo "PASS: all $COUNT imports failed as expected with fake server URL"

@@ -1,4 +1,4 @@
-name: Test basic usage (failOnImportError false)
+name: Test Xray Server/DC mode
 on:
   workflow_dispatch:
 jobs:
@@ -7,9 +7,10 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      # Use server mode (xrayCloud=false) so auth is skipped and outputs are
-      # always set even when the import fails (network error to fake URL).
-      # Cloud mode auth fails before outputs are set, making assertions impossible.
+      # XrayServer (xrayCloud=false) skips auth entirely (requiresAuth=false)
+      # and uses Basic Auth or Bearer token for each import request.
+      # The import will fail with a network error to the fake URL, but
+      # continueOnImportError=true ensures outputs are always set.
       - id: xray
         uses: .
         with:
@@ -60,20 +61,6 @@ jobs:
           fi
           echo "PASS: completed output is set to '$COMPLETED'"
 
-      - name: Assert count equals failed plus completed
-        env:
-          COUNT: ${{ steps.xray.outputs.count }}
-          FAILED: ${{ steps.xray.outputs.failed }}
-          COMPLETED: ${{ steps.xray.outputs.completed }}
-        run: |
-          echo "count=$COUNT, failed=$FAILED, completed=$COMPLETED"
-          EXPECTED=$((FAILED + COMPLETED))
-          if [ "$COUNT" != "$EXPECTED" ]; then
-            echo "FAIL: count ($COUNT) != failed ($FAILED) + completed ($COMPLETED) = $EXPECTED"
-            exit 1
-          fi
-          echo "PASS: count = failed + completed"
-
       - name: Assert import failed (fake server URL)
         env:
           FAILED: ${{ steps.xray.outputs.failed }}
@@ -95,3 +82,17 @@ jobs:
             exit 1
           fi
           echo "PASS: count=1 as expected for single file"
+
+      - name: Assert count equals failed plus completed
+        env:
+          COUNT: ${{ steps.xray.outputs.count }}
+          FAILED: ${{ steps.xray.outputs.failed }}
+          COMPLETED: ${{ steps.xray.outputs.completed }}
+        run: |
+          echo "count=$COUNT, failed=$FAILED, completed=$COMPLETED"
+          EXPECTED=$((FAILED + COMPLETED))
+          if [ "$COUNT" != "$EXPECTED" ]; then
+            echo "FAIL: count ($COUNT) != failed ($FAILED) + completed ($COMPLETED) = $EXPECTED"
+            exit 1
+          fi
+          echo "PASS: count = failed + completed"

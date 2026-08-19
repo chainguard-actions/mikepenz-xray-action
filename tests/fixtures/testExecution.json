@@ -1,0 +1,6 @@
+{
+  "fields": {
+    "summary": "Test Execution from CI",
+    "description": "Automated test execution"
+  }
+}

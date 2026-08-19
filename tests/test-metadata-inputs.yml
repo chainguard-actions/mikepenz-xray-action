@@ -1,4 +1,4 @@
-name: Test basic usage (failOnImportError false)
+name: Test metadata inputs (fixVersion, revision, testEnvironments, testPlanKey)
 on:
   workflow_dispatch:
 jobs:
@@ -9,7 +9,8 @@ jobs:
 
       # Use server mode (xrayCloud=false) so auth is skipped and outputs are
       # always set even when the import fails (network error to fake URL).
-      # Cloud mode auth fails before outputs are set, making assertions impossible.
+      # This test exercises the fixVersion, revision, testEnvironments, and
+      # testPlanKey inputs which are optional metadata fields.
       - id: xray
         uses: .
         with:
@@ -21,6 +22,10 @@ jobs:
           testFormat: "junit"
           testExecKey: "PROJ-1"
           projectKey: "PROJ"
+          testPlanKey: "PROJ-100"
+          testEnvironments: "staging;production"
+          revision: "abc123def456"
+          fixVersion: "1.0.0"
           failOnImportError: "false"
           continueOnImportError: "true"
           importParallelism: "1"

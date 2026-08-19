@@ -1,4 +1,4 @@
-name: Test basic usage (failOnImportError false)
+name: Test JSON file inputs (testExecutionJson, testJson)
 on:
   workflow_dispatch:
 jobs:
@@ -9,7 +9,8 @@ jobs:
 
       # Use server mode (xrayCloud=false) so auth is skipped and outputs are
       # always set even when the import fails (network error to fake URL).
-      # Cloud mode auth fails before outputs are set, making assertions impossible.
+      # This test exercises the testExecutionJson and testJson inputs which
+      # allow providing metadata JSON files for test execution and test tickets.
       - id: xray
         uses: .
         with:
@@ -21,6 +22,8 @@ jobs:
           testFormat: "junit"
           testExecKey: "PROJ-1"
           projectKey: "PROJ"
+          testExecutionJson: "tests/fixtures/testExecution.json"
+          testJson: "tests/fixtures/test.json"
           failOnImportError: "false"
           continueOnImportError: "true"
           importParallelism: "1"

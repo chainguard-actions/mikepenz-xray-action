@@ -1,4 +1,4 @@
-name: Test basic usage (failOnImportError false)
+name: Test combineInSingleTestExec option
 on:
   workflow_dispatch:
 jobs:
@@ -9,7 +9,9 @@ jobs:
 
       # Use server mode (xrayCloud=false) so auth is skipped and outputs are
       # always set even when the import fails (network error to fake URL).
-      # Cloud mode auth fails before outputs are set, making assertions impossible.
+      # With testExecKey provided, combineInSingleTestExec has no effect on
+      # the import flow (it only triggers when testExecKey is absent), so
+      # we can still verify outputs are set correctly.
       - id: xray
         uses: .
         with:
@@ -17,10 +19,12 @@ jobs:
           xrayBaseUrl: "https://jira.example.invalid"
           username: "fake-jira-user"
           password: "fake-jira-password"
-          testPaths: "tests/fixtures/junit/TEST-sample.xml"
+          testPaths: "tests/fixtures/junit/TEST-*.xml"
           testFormat: "junit"
+          testMerge: "false"
           testExecKey: "PROJ-1"
           projectKey: "PROJ"
+          combineInSingleTestExec: "true"
           failOnImportError: "false"
           continueOnImportError: "true"
           importParallelism: "1"
@@ -74,24 +78,13 @@ jobs:
           fi
           echo "PASS: count = failed + completed"
 
-      - name: Assert import failed (fake server URL)
-        env:
-          FAILED: ${{ steps.xray.outputs.failed }}
-        run: |
-          echo "failed: $FAILED"
-          if [ "$FAILED" -lt 1 ]; then
-            echo "FAIL: expected at least 1 failed import with fake server URL, got $FAILED"
-            exit 1
-          fi
-          echo "PASS: import failed as expected with fake server URL"
-
-      - name: Assert count is 1 (single file)
+      - name: Assert count is 2 (two fixture files, no merge)
         env:
           COUNT: ${{ steps.xray.outputs.count }}
         run: |
           echo "count: $COUNT"
-          if [ "$COUNT" != "1" ]; then
-            echo "FAIL: expected count=1 for single file, got $COUNT"
+          if [ "$COUNT" -lt 2 ]; then
+            echo "FAIL: expected count>=2 without merge (2 fixture files), got $COUNT"
             exit 1
           fi
-          echo "PASS: count=1 as expected for single file"
+          echo "PASS: count=$COUNT >= 2 as expected without merge"

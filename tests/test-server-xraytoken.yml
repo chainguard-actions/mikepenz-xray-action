@@ -1,0 +1,79 @@
+name: Test Server/DC mode with xrayToken
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create a sample JUnit XML test result
+        run: |
+          mkdir -p test-results/test
+          cat > test-results/test/TEST-server.xml << 'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <testsuite name="ServerSuite" tests="1" failures="0" errors="0" time="0.2">
+            <testcase name="testServer" classname="com.example.ServerTest" time="0.2"/>
+          </testsuite>
+          EOF
+
+      - id: xray
+        uses: .
+        with:
+          xrayCloud: "false"
+          xrayBaseUrl: "http://localhost:9999"
+          xrayToken: "fake-personal-access-token"
+          testPaths: "**/test-results/test/TEST-*.xml"
+          testFormat: "junit"
+          testExecKey: "PROJ-2"
+          projectKey: "PROJ"
+          failOnImportError: "false"
+          continueOnImportError: "true"
+          importParallelism: "1"
+          responseTimeout: "5000"
+          importRetryLimit: "0"
+
+      - name: Assert count output is set
+        env:
+          COUNT: ${{ steps.xray.outputs.count }}
+        run: |
+          echo "count: $COUNT"
+          if [ -z "$COUNT" ]; then
+            echo "FAIL: expected count output to be set"
+            exit 1
+          fi
+          echo "PASS: count=$COUNT"
+
+      - name: Assert failed output is set
+        env:
+          FAILED: ${{ steps.xray.outputs.failed }}
+        run: |
+          echo "failed: $FAILED"
+          if [ -z "$FAILED" ]; then
+            echo "FAIL: expected failed output to be set"
+            exit 1
+          fi
+          echo "PASS: failed=$FAILED"
+
+      - name: Assert import attempted (count >= 1)
+        env:
+          COUNT: ${{ steps.xray.outputs.count }}
+        run: |
+          echo "count: $COUNT"
+          if [ "$COUNT" -lt 1 ]; then
+            echo "FAIL: expected at least 1 file to be counted, got $COUNT"
+            exit 1
+          fi
+          echo "PASS: count=$COUNT"
+
+      - name: Assert all imports failed (fake server URL)
+        env:
+          COUNT: ${{ steps.xray.outputs.count }}
+          FAILED: ${{ steps.xray.outputs.failed }}
+        run: |
+          echo "count: $COUNT, failed: $FAILED"
+          if [ "$FAILED" -ne "$COUNT" ]; then
+            echo "FAIL: expected failed ($FAILED) to equal count ($COUNT) since server URL is fake"
+            exit 1
+          fi
+          echo "PASS: all imports failed as expected with fake server"
