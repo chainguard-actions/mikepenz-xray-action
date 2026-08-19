@@ -1,0 +1,48 @@
+name: Test failOnImportError true causes failure
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create dummy JUnit XML test result
+        run: |
+          mkdir -p test-results/test
+          cat > test-results/test/TEST-example.xml <<'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <testsuite name="ExampleSuite" tests="1" failures="0" errors="0" time="0.5">
+            <testcase name="testOne" classname="com.example.TestClass" time="0.5"/>
+          </testsuite>
+          EOF
+
+      - id: xray
+        uses: .
+        with:
+          xrayCloud: "true"
+          xrayBaseUrl: "http://localhost:19999"
+          username: "fake-client-id"
+          password: "fake-client-secret"
+          testPaths: "**/test-results/test/TEST-*.xml"
+          testFormat: "junit"
+          testExecKey: "PROJ-1"
+          projectKey: "PROJ"
+          failOnImportError: "true"
+          continueOnImportError: "false"
+          importRetryLimit: "0"
+          responseTimeout: "5000"
+        continue-on-error: true
+
+      - name: Assert action failed due to authentication error
+        env:
+          OUTCOME: ${{ steps.xray.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          # With fake credentials pointing to localhost, auth will fail immediately
+          # With failOnImportError=true, the action should fail
+          if [ "$OUTCOME" != "failure" ]; then
+            echo "FAIL: expected action to fail with invalid credentials and failOnImportError=true, got outcome=$OUTCOME"
+            exit 1
+          fi
+          echo "PASS: action correctly failed with fake credentials (outcome=$OUTCOME)"

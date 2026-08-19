@@ -1,0 +1,55 @@
+name: Test testEnvironments input
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create a sample JUnit XML test result
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/test-results/test"
+          cat > "$GITHUB_WORKSPACE/test-results/test/TEST-env.xml" <<'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <testsuite name="EnvTest" tests="1" failures="0" errors="0" skipped="0">
+            <testcase name="testEnvironment" classname="com.example.EnvTest" time="0.001"/>
+          </testsuite>
+          EOF
+
+      - id: action
+        uses: .
+        with:
+          xrayCloud: "false"
+          xrayBaseUrl: "https://fake-jira.example.com"
+          username: "fake-user"
+          password: "fake-password"
+          testPaths: "**/test-results/test/TEST-*.xml"
+          testFormat: "junit"
+          testExecKey: "PROJ-200"
+          projectKey: "PROJ"
+          testEnvironments: "staging;production"
+          failOnImportError: "false"
+          continueOnImportError: "true"
+
+      - name: Assert count output is present
+        env:
+          COUNT: ${{ steps.action.outputs.count }}
+        run: |
+          echo "count: $COUNT"
+          if [ -z "$COUNT" ]; then
+            echo "FAIL: expected count output to be set"
+            exit 1
+          fi
+          echo "PASS: count output is set to '$COUNT'"
+
+      - name: Assert completed output is present
+        env:
+          COMPLETED: ${{ steps.action.outputs.completed }}
+        run: |
+          echo "completed: $COMPLETED"
+          if [ -z "$COMPLETED" ]; then
+            echo "FAIL: expected completed output to be set"
+            exit 1
+          fi
+          echo "PASS: completed output is set to '$COMPLETED'"

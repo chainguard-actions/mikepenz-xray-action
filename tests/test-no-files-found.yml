@@ -1,0 +1,49 @@
+name: Test no test files found
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        with:
+          xrayCloud: "false"
+          xrayBaseUrl: "https://jira.example.invalid"
+          xrayToken: "fake-personal-access-token"
+          testPaths: "**/nonexistent-path/TEST-*.xml"
+          testFormat: "junit"
+          testExecKey: "PROJ-1"
+          projectKey: "PROJ"
+          failOnImportError: "false"
+          continueOnImportError: "true"
+          importParallelism: "1"
+          responseTimeout: "5000"
+          importRetryLimit: "0"
+
+      - name: Assert count is zero when no files found
+        env:
+          COUNT: ${{ steps.action.outputs.count }}
+          FAILED: ${{ steps.action.outputs.failed }}
+          COMPLETED: ${{ steps.action.outputs.completed }}
+        run: |
+          echo "count: $COUNT"
+          echo "failed: $FAILED"
+          echo "completed: $COMPLETED"
+          # When no files match the glob, count/failed/completed should all be 0
+          # and no network calls are made (so no auth/import errors)
+          if [ "$COUNT" != "0" ]; then
+            echo "FAIL: expected count=0 when no files found, got '$COUNT'"
+            exit 1
+          fi
+          if [ "$FAILED" != "0" ]; then
+            echo "FAIL: expected failed=0 when no files found, got '$FAILED'"
+            exit 1
+          fi
+          if [ "$COMPLETED" != "0" ]; then
+            echo "FAIL: expected completed=0 when no files found, got '$COMPLETED'"
+            exit 1
+          fi
+          echo "PASS: count=0, failed=0, completed=0 as expected when no files found"

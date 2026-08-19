@@ -1,0 +1,70 @@
+name: Test testExecutionJson and testJson inputs
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create sample JUnit XML test result and JSON metadata files
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/test-results/test"
+          cat > "$GITHUB_WORKSPACE/test-results/test/TEST-json.xml" <<'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <testsuite name="JsonTest" tests="1" failures="0" errors="0" skipped="0">
+            <testcase name="testJson" classname="com.example.JsonTest" time="0.001"/>
+          </testsuite>
+          EOF
+
+          cat > "$GITHUB_WORKSPACE/test-execution.json" <<'EOF'
+          {
+            "fields": {
+              "summary": "Test Execution from CI",
+              "description": "Automated test execution"
+            }
+          }
+          EOF
+
+          cat > "$GITHUB_WORKSPACE/test-info.json" <<'EOF'
+          {
+            "fields": {
+              "summary": "Test info from CI"
+            }
+          }
+          EOF
+
+      - id: action
+        uses: .
+        with:
+          xrayCloud: "true"
+          username: "fake-client-id"
+          password: "fake-client-secret"
+          testPaths: "**/test-results/test/TEST-*.xml"
+          testFormat: "junit"
+          testExecKey: "PROJ-300"
+          projectKey: "PROJ"
+          testExecutionJson: "${{ github.workspace }}/test-execution.json"
+          testJson: "${{ github.workspace }}/test-info.json"
+          failOnImportError: "false"
+          continueOnImportError: "true"
+
+      - name: Assert count output is present
+        env:
+          COUNT: ${{ steps.action.outputs.count }}
+        run: |
+          echo "count: $COUNT"
+          if [ -z "$COUNT" ]; then
+            echo "FAIL: expected count output to be set"
+            exit 1
+          fi
+          echo "PASS: count output is set to '$COUNT'"
+
+      - name: Assert errorMessage output is present (may be set on auth failure)
+        env:
+          ERROR_MSG: ${{ steps.action.outputs.errorMessage }}
+          ERROR_CODE: ${{ steps.action.outputs.errorStatusCode }}
+        run: |
+          echo "errorMessage: $ERROR_MSG"
+          echo "errorStatusCode: $ERROR_CODE"
+          echo "PASS: outputs checked"

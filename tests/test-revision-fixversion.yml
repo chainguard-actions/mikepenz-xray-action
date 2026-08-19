@@ -1,0 +1,55 @@
+name: Test revision and fixVersion inputs
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create a sample JUnit XML test result
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/test-results/test"
+          cat > "$GITHUB_WORKSPACE/test-results/test/TEST-sample.xml" <<'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <testsuite name="SampleTest" tests="1" failures="0" errors="0" skipped="0">
+            <testcase name="testSomething" classname="com.example.SampleTest" time="0.001"/>
+          </testsuite>
+          EOF
+
+      - id: action
+        uses: .
+        with:
+          xrayCloud: "true"
+          username: "fake-client-id"
+          password: "fake-client-secret"
+          testPaths: "**/test-results/test/TEST-*.xml"
+          testFormat: "junit"
+          testExecKey: "PROJ-100"
+          projectKey: "PROJ"
+          revision: "abc123def456"
+          fixVersion: "1.0.0"
+          failOnImportError: "false"
+          continueOnImportError: "true"
+
+      - name: Assert count output is present
+        env:
+          COUNT: ${{ steps.action.outputs.count }}
+        run: |
+          echo "count: $COUNT"
+          if [ -z "$COUNT" ]; then
+            echo "FAIL: expected count output to be set"
+            exit 1
+          fi
+          echo "PASS: count output is set to '$COUNT'"
+
+      - name: Assert failed output is present
+        env:
+          FAILED: ${{ steps.action.outputs.failed }}
+        run: |
+          echo "failed: $FAILED"
+          if [ -z "$FAILED" ]; then
+            echo "FAIL: expected failed output to be set"
+            exit 1
+          fi
+          echo "PASS: failed output is set to '$FAILED'"

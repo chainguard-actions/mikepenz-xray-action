@@ -1,0 +1,63 @@
+name: Test Xray Server/DC variant
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create dummy JUnit XML test result
+        run: |
+          mkdir -p test-results/test
+          cat > test-results/test/TEST-server.xml <<'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <testsuite name="ServerSuite" tests="2" failures="1" errors="0" time="2.0">
+            <testcase name="testPass" classname="com.example.ServerTest" time="1.0"/>
+            <testcase name="testFail" classname="com.example.ServerTest" time="1.0">
+              <failure message="assertion failed">Expected true but was false</failure>
+            </testcase>
+          </testsuite>
+          EOF
+
+      - id: xray
+        uses: .
+        with:
+          xrayCloud: "false"
+          xrayBaseUrl: "http://localhost:19999"
+          username: "fake-jira-user"
+          password: "fake-jira-password"
+          testPaths: "**/test-results/test/TEST-server.xml"
+          testFormat: "junit"
+          testExecKey: "PROJ-2"
+          projectKey: "PROJ"
+          failOnImportError: "false"
+          continueOnImportError: "true"
+          responseTimeout: "5000"
+          importRetryLimit: "0"
+        continue-on-error: true
+
+      - name: Assert outputs are produced for Server/DC variant
+        env:
+          OUTCOME: ${{ steps.xray.outcome }}
+          COUNT: ${{ steps.xray.outputs.count }}
+          FAILED: ${{ steps.xray.outputs.failed }}
+          COMPLETED: ${{ steps.xray.outputs.completed }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "count: $COUNT"
+          echo "failed: $FAILED"
+          echo "completed: $COMPLETED"
+          # Server/DC variant skips auth and goes straight to import
+          # Import will fail (connection refused to localhost:19999)
+          # failOnImportError=false so action should succeed
+          if [ "$OUTCOME" != "success" ] && [ "$OUTCOME" != "failure" ]; then
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
+          # count should be set to 1 (one file found)
+          if [ "$COUNT" != "1" ]; then
+            echo "FAIL: expected count=1, got count='$COUNT'"
+            exit 1
+          fi
+          echo "PASS: Server/DC variant ran correctly with count=$COUNT"

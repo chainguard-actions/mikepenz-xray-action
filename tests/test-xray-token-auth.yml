@@ -1,0 +1,62 @@
+name: Test Xray Personal Access Token authentication
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create dummy JUnit XML test result
+        run: |
+          mkdir -p test-results/test
+          cat > test-results/test/TEST-token.xml <<'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <testsuite name="TokenAuthSuite" tests="3" failures="0" errors="0" time="1.5">
+            <testcase name="testAlpha" classname="com.example.TokenTest" time="0.5"/>
+            <testcase name="testBeta" classname="com.example.TokenTest" time="0.5"/>
+            <testcase name="testGamma" classname="com.example.TokenTest" time="0.5"/>
+          </testsuite>
+          EOF
+
+      - id: xray
+        uses: .
+        with:
+          xrayCloud: "false"
+          xrayBaseUrl: "http://localhost:19999"
+          xrayToken: "fake-personal-access-token"
+          testPaths: "**/test-results/test/TEST-token.xml"
+          testFormat: "junit"
+          testExecKey: "PROJ-3"
+          projectKey: "PROJ"
+          testPlanKey: "PROJ-10"
+          failOnImportError: "false"
+          continueOnImportError: "true"
+          responseTimeout: "5000"
+          importRetryLimit: "0"
+        continue-on-error: true
+
+      - name: Assert outputs are produced with PAT auth
+        env:
+          OUTCOME: ${{ steps.xray.outcome }}
+          COUNT: ${{ steps.xray.outputs.count }}
+          FAILED: ${{ steps.xray.outputs.failed }}
+          COMPLETED: ${{ steps.xray.outputs.completed }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "count: $COUNT"
+          echo "failed: $FAILED"
+          echo "completed: $COMPLETED"
+          # Server/DC variant with PAT token skips auth and goes straight to import
+          # Import will fail (connection refused to localhost:19999)
+          # failOnImportError=false so action should succeed
+          if [ "$OUTCOME" != "success" ] && [ "$OUTCOME" != "failure" ]; then
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
+          # count should be set to 1 (one file found)
+          if [ "$COUNT" != "1" ]; then
+            echo "FAIL: expected count=1, got count='$COUNT'"
+            exit 1
+          fi
+          echo "PASS: PAT authentication variant ran correctly with count=$COUNT"

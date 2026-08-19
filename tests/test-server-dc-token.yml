@@ -1,0 +1,77 @@
+name: Test Xray Server/DC with personal access token
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create a sample JUnit XML test result
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/test-results/test"
+          cat > "$GITHUB_WORKSPACE/test-results/test/TEST-server.xml" <<'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <testsuite name="ServerTest" tests="1" failures="0" errors="0" time="0.1">
+            <testcase name="testServer" classname="com.example.ServerTest" time="0.1"/>
+          </testsuite>
+          EOF
+
+      - id: action
+        uses: .
+        with:
+          xrayCloud: "false"
+          xrayBaseUrl: "https://jira.example.invalid"
+          xrayToken: "fake-personal-access-token"
+          testPaths: "**/test-results/test/TEST-*.xml"
+          testFormat: "junit"
+          testExecKey: "PROJ-1"
+          projectKey: "PROJ"
+          failOnImportError: "false"
+          continueOnImportError: "true"
+          importParallelism: "1"
+          responseTimeout: "5000"
+          importRetryLimit: "0"
+
+      - name: Assert outputs are set for Server/DC mode
+        env:
+          COUNT: ${{ steps.action.outputs.count }}
+          FAILED: ${{ steps.action.outputs.failed }}
+          COMPLETED: ${{ steps.action.outputs.completed }}
+        run: |
+          echo "count: $COUNT"
+          echo "failed: $FAILED"
+          echo "completed: $COMPLETED"
+          # Server/DC mode skips auth (requiresAuth=false), goes straight to import.
+          # Import fails with network error (fake URL), but outputs are still set.
+          if [ -z "$COUNT" ]; then
+            echo "FAIL: count output was not set"
+            exit 1
+          fi
+          if [ -z "$FAILED" ]; then
+            echo "FAIL: failed output was not set"
+            exit 1
+          fi
+          if [ -z "$COMPLETED" ]; then
+            echo "FAIL: completed output was not set"
+            exit 1
+          fi
+          echo "PASS: all outputs are set for Server/DC mode"
+
+      - name: Assert import failed due to invalid token and server URL
+        env:
+          FAILED: ${{ steps.action.outputs.failed }}
+          COMPLETED: ${{ steps.action.outputs.completed }}
+        run: |
+          echo "failed: $FAILED"
+          echo "completed: $COMPLETED"
+          # With fake token and unreachable URL, we expect at least 1 failed import
+          if [ "$FAILED" -lt 1 ]; then
+            echo "FAIL: expected at least 1 failed import with invalid token/URL, got $FAILED"
+            exit 1
+          fi
+          if [ "$COMPLETED" -ne 0 ]; then
+            echo "FAIL: expected 0 completed imports with invalid token/URL, got $COMPLETED"
+            exit 1
+          fi
+          echo "PASS: import failed as expected with invalid token in Server/DC mode (failed=$FAILED)"
