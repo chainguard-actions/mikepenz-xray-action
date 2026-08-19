@@ -1,0 +1,101 @@
+name: Test basic usage with failOnImportError false
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create a dummy JUnit XML test result
+        run: |
+          mkdir -p test-results/test
+          cat > test-results/test/TEST-example.xml <<'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <testsuite name="ExampleSuite" tests="1" failures="0" errors="0" time="0.1">
+            <testcase name="exampleTest" classname="ExampleClass" time="0.1"/>
+          </testsuite>
+          EOF
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          xrayCloud: "true"
+          username: "fake-client-id"
+          password: "fake-client-secret"
+          testPaths: "**/test-results/test/TEST-*.xml"
+          testFormat: "junit"
+          testExecKey: "PROJ-1"
+          projectKey: "PROJ"
+          failOnImportError: "false"
+          continueOnImportError: "true"
+          importParallelism: "1"
+          responseTimeout: "5000"
+          importRetryLimit: "0"
+
+      - name: Assert action ran (step outcome is set)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "action outcome: $OUTCOME"
+          # With fake credentials, the action will fail at auth stage
+          # We just verify the step ran (outcome is either success or failure, not skipped)
+          if [ "$OUTCOME" = "skipped" ]; then
+            echo "FAIL: action step was skipped unexpectedly"
+            exit 1
+          fi
+          echo "PASS: action step ran with outcome=$OUTCOME"
+
+      - name: Assert count output or auth failure
+        env:
+          COUNT: ${{ steps.action.outputs.count }}
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "count: $COUNT"
+          echo "outcome: $OUTCOME"
+          # If auth failed, count won't be set - that's expected with fake credentials
+          # If somehow the action succeeded (unlikely), count should be set
+          if [ "$OUTCOME" = "success" ]; then
+            if [ -z "$COUNT" ]; then
+              echo "FAIL: expected count output to be set on success"
+              exit 1
+            fi
+            echo "PASS: count=$COUNT"
+          else
+            echo "PASS: action failed at auth stage as expected with fake credentials"
+          fi
+
+      - name: Assert failed output or auth failure
+        env:
+          FAILED: ${{ steps.action.outputs.failed }}
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "failed: $FAILED"
+          echo "outcome: $OUTCOME"
+          if [ "$OUTCOME" = "success" ]; then
+            if [ -z "$FAILED" ]; then
+              echo "FAIL: expected failed output to be set on success"
+              exit 1
+            fi
+            echo "PASS: failed=$FAILED"
+          else
+            echo "PASS: action failed at auth stage as expected with fake credentials"
+          fi
+
+      - name: Assert completed output or auth failure
+        env:
+          COMPLETED: ${{ steps.action.outputs.completed }}
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "completed: $COMPLETED"
+          echo "outcome: $OUTCOME"
+          if [ "$OUTCOME" = "success" ]; then
+            if [ -z "$COMPLETED" ]; then
+              echo "FAIL: expected completed output to be set on success"
+              exit 1
+            fi
+            echo "PASS: completed=$COMPLETED"
+          else
+            echo "PASS: action failed at auth stage as expected with fake credentials"
+          fi

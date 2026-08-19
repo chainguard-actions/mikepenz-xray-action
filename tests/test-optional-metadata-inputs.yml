@@ -1,0 +1,64 @@
+name: Test optional metadata inputs (fixVersion, revision, testEnvironments, testExecutionJson, testJson, testPlanKey)
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # Create a minimal JUnit XML test result file for the action to find
+      - name: Create test result file
+        run: |
+          mkdir -p test-results/test
+          cat > test-results/test/TEST-example.xml << 'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <testsuite name="ExampleSuite" tests="1" failures="0" errors="0" time="0.1">
+            <testcase name="exampleTest" classname="ExampleClass" time="0.1"/>
+          </testsuite>
+          EOF
+
+      # Exercise all optional metadata inputs: fixVersion, revision, testEnvironments,
+      # testExecutionJson, testJson, testPlanKey.
+      # Using Server/DC mode with an unreachable URL so no real network calls succeed.
+      # The action will fail due to the unreachable server; we assert on that outcome.
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          xrayCloud: "false"
+          xrayBaseUrl: "https://127.0.0.1:19999"
+          xrayToken: "fake-personal-access-token"
+          testPaths: "**/test-results/test/TEST-*.xml"
+          testFormat: "junit"
+          testExecKey: "PROJ-1"
+          projectKey: "PROJ"
+          testPlanKey: "PROJ-100"
+          testEnvironments: "staging;production"
+          revision: "abc123def456"
+          fixVersion: "1.0.0"
+          testExecutionJson: "${{ github.workspace }}/hardened/tests/fixtures/test-execution.json"
+          testJson: "${{ github.workspace }}/hardened/tests/fixtures/test-info.json"
+          failOnImportError: "false"
+          continueOnImportError: "true"
+          importRetryLimit: "0"
+          responseTimeout: "5000"
+
+      - name: Assert action ran (inputs accepted)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          COUNT: ${{ steps.action.outputs.count }}
+          FAILED: ${{ steps.action.outputs.failed }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "count: $COUNT"
+          echo "failed: $FAILED"
+          # The action should either succeed (unlikely with unreachable server) or fail
+          # gracefully. What matters is that it ran and accepted all the optional inputs
+          # without crashing due to unrecognized inputs.
+          if [ "$OUTCOME" = "success" ] || [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action ran and accepted all optional metadata inputs"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi

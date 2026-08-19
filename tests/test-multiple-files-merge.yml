@@ -1,0 +1,82 @@
+name: Test multiple test files with merge enabled
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # Create multiple JUnit XML test result files
+      - name: Create multiple test result files
+        run: |
+          mkdir -p test-results/test
+          cat > test-results/test/TEST-suite1.xml << 'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <testsuite name="Suite1" tests="2" failures="0" errors="0" time="0.3">
+            <testcase name="test1" classname="Suite1Class" time="0.1"/>
+            <testcase name="test2" classname="Suite1Class" time="0.2"/>
+          </testsuite>
+          EOF
+          cat > test-results/test/TEST-suite2.xml << 'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <testsuite name="Suite2" tests="1" failures="1" errors="0" time="0.5">
+            <testcase name="test3" classname="Suite2Class" time="0.5">
+              <failure message="Assertion failed">Expected true but was false</failure>
+            </testcase>
+          </testsuite>
+          EOF
+
+      # Use XrayServer (requiresAuth=false) so no auth call is made.
+      # With testMerge=true and multiple junit files, they are merged into one file.
+      # The import will fail because the URL is unreachable, but failOnImportError=false
+      # so the action should succeed and set outputs.
+      - id: action
+        uses: .
+        with:
+          xrayCloud: "false"
+          xrayBaseUrl: "https://127.0.0.1:19999"
+          xrayToken: "fake-personal-access-token"
+          testPaths: "**/test-results/test/TEST-*.xml"
+          testMerge: "true"
+          testFormat: "junit"
+          testExecKey: "PROJ-2"
+          projectKey: "PROJ"
+          failOnImportError: "false"
+          continueOnImportError: "true"
+          importRetryLimit: "0"
+          responseTimeout: "5000"
+
+      - name: Assert count output reflects merged files
+        env:
+          COUNT: ${{ steps.action.outputs.count }}
+        run: |
+          echo "count: $COUNT"
+          if [ -z "$COUNT" ]; then
+            echo "FAIL: expected count output to be set"
+            exit 1
+          fi
+          # With testMerge=true and junit format, multiple files are merged into one
+          # So count should be 1 (merged) rather than 2 (individual)
+          if [ "$COUNT" != "1" ]; then
+            echo "FAIL: expected count=1 after merging 2 files, got count='$COUNT'"
+            exit 1
+          fi
+          echo "PASS: count='$COUNT' (merged into 1 import as expected)"
+
+      - name: Assert failed and completed outputs are set
+        env:
+          FAILED: ${{ steps.action.outputs.failed }}
+          COMPLETED: ${{ steps.action.outputs.completed }}
+        run: |
+          echo "failed: $FAILED"
+          echo "completed: $COMPLETED"
+          if [ -z "$FAILED" ]; then
+            echo "FAIL: expected failed output to be set"
+            exit 1
+          fi
+          if [ -z "$COMPLETED" ]; then
+            echo "FAIL: expected completed output to be set"
+            exit 1
+          fi
+          echo "PASS: failed='$FAILED', completed='$COMPLETED'"
