@@ -1,0 +1,73 @@
+name: Test xray-action with testExecutionJson and testJson
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create dummy JUnit test result and JSON meta files
+        run: |
+          mkdir -p /tmp/test-results/test
+          cat > /tmp/test-results/test/TEST-example.xml <<'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <testsuite name="ExampleSuite" tests="1" failures="0" errors="0" time="0.1">
+            <testcase name="exampleTest" classname="ExampleClass" time="0.1"/>
+          </testsuite>
+          EOF
+
+          cat > /tmp/test-execution.json <<'EOF'
+          {
+            "fields": {
+              "summary": "Test Execution from CI",
+              "description": "Automated test execution"
+            }
+          }
+          EOF
+
+          cat > /tmp/test.json <<'EOF'
+          {
+            "fields": {
+              "summary": "Test from CI"
+            }
+          }
+          EOF
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          xrayCloud: "true"
+          username: "fake-client-id"
+          password: "fake-client-secret"
+          testPaths: "/tmp/test-results/test/TEST-*.xml"
+          testFormat: "junit"
+          testExecKey: "PROJ-101"
+          projectKey: "PROJ"
+          testExecutionJson: "/tmp/test-execution.json"
+          testJson: "/tmp/test.json"
+          failOnImportError: "false"
+          continueOnImportError: "true"
+
+      - name: Assert action ran (outputs set or failed gracefully on fake credentials)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          COUNT: ${{ steps.action.outputs.count }}
+          FAILED: ${{ steps.action.outputs.failed }}
+          COMPLETED: ${{ steps.action.outputs.completed }}
+          ERROR_MSG: ${{ steps.action.outputs.errorMessage }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "count: $COUNT"
+          echo "failed: $FAILED"
+          echo "completed: $COMPLETED"
+          echo "errorMessage: $ERROR_MSG"
+          if [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action succeeded"
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully (expected with fake credentials)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi

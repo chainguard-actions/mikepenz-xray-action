@@ -1,0 +1,129 @@
+name: 'CI'
+on:
+  push:
+    tags:
+      - '*'
+  pull_request:
+
+permissions: {}
+
+jobs:
+  build:
+    if: github.event_name  == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7
+        with:
+          node-version: '24'
+
+      - name: Install NPM
+        run: npm ci
+
+      - name: Audit dependencies
+        run: npm audit --audit-level=high
+
+      - name: Run NPM
+        run: npm run all
+        env:
+          XRAY_USERNAME: ${{ secrets.XRAY_USERNAME }}
+          XRAY_PASSWORD: ${{ secrets.XRAY_PASSWORD }}
+
+  commit-dist:
+    if: |
+      github.event_name == 'pull_request' &&
+      startsWith(github.head_ref, 'renovate/') &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      (github.actor == github.repository_owner || github.actor == 'renovate-mike[bot]')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7
+        with:
+          ref: ${{ github.head_ref }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7
+        with:
+          node-version: '24'
+      - run: npm ci
+      - run: npm run build && npm run package
+      - name: Commit rebuilt dist
+        env:
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          REPOSITORY: ${{ github.repository }}
+          RENOVATE_TOKEN: ${{ secrets.RENOVATE_TOKEN }}
+        run: |
+          git config user.name "Mike Penz"
+          git config user.email "opensource-bot@mikepenz.dev"
+          git add dist/
+          git diff --staged --quiet || git commit -m "chore: rebuild dist for renovate"
+          git push "https://x-access-token:${RENOVATE_TOKEN}@github.com/${REPOSITORY}.git" "HEAD:refs/heads/${HEAD_REF}"
+
+  test:
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7
+
+      - name: "Run imports"
+        uses: ./
+        with:
+          username: ${{ secrets.XRAY_USERNAME }}
+          password: ${{ secrets.XRAY_PASSWORD }}
+          xrayCloud: "false"
+          xrayBaseUrl: "https://xray-demo3.xpand-it.com"
+          testFormat: "junit"
+          testPaths: "marathon_tests/*.xml"
+          testPlanKey: "GHXA-9"
+          projectKey: "GHXA"
+          combineInSingleTestExec: "true"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7
+        with:
+          node-version: '24'
+
+      - name: Build dist
+        run: npm ci && npm audit --audit-level=high && npm run build && npm run package
+
+      - name: Attest dist provenance
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32  # v4.1.0
+        with:
+          subject-path: dist/
+
+      - name: "Build Changelog"
+        id: github_release
+        uses: mikepenz/release-changelog-builder-action@c9bcd8238b6f41e05561348339429d360b1c0247  # v6.2.3
+        with:
+          configuration: ".github/config/configuration.json"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create Release
+        uses: mikepenz/action-gh-release@7a1a2d94070db8d22681770f42cdb85a9c38d6ac  # v3.1.0
+        with:
+          body: ${{steps.github_release.outputs.changelog}}
+          prerelease: ${{ contains(github.ref, '-rc') || contains(github.ref, '-b') || contains(github.ref, '-a') }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
