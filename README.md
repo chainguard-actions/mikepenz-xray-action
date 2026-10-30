@@ -6,13 +6,13 @@ Hardened by [Chainguard](https://www.chainguard.dev) from the upstream action at
 
 ## Versions
 
-| Version | Tag | Upstream commit |
-|---------|-----|-----------------|
-| v4.0.0 | [`v4.0.0`](https://github.com/chainguard-actions/mikepenz-xray-action/tree/v4.0.0) | [`b52d73a`](https://github.com/mikepenz/xray-action/commit/b52d73af8012b21cefeb2dfe8f77e35a3b735e3b) |
-| v4.0.1 | [`v4.0.1`](https://github.com/chainguard-actions/mikepenz-xray-action/tree/v4.0.1) | [`25ef4a0`](https://github.com/mikepenz/xray-action/commit/25ef4a01d6e2e5b0fcafa75fa23d3412af39f2af) |
-| v4.1.0 | [`v4.1.0`](https://github.com/chainguard-actions/mikepenz-xray-action/tree/v4.1.0) | [`5022d99`](https://github.com/mikepenz/xray-action/commit/5022d9947f271e229316f00351bf7ace153d7e95) |
-| v4.1.1 | [`v4.1.1`](https://github.com/chainguard-actions/mikepenz-xray-action/tree/v4.1.1) | [`2b26808`](https://github.com/mikepenz/xray-action/commit/2b268086cd2fc5a78bbada2d791286c96077f44b) |
-| v4.2.0 | [`v4.2.0`](https://github.com/chainguard-actions/mikepenz-xray-action/tree/v4.2.0) | [`93fcac9`](https://github.com/mikepenz/xray-action/commit/93fcac936537e41c08c7191229e6106ae511f0da) |
+| Version | Tag | Upstream commit | Hardening report |
+|---------|-----|-----------------|------------------|
+| v4.0.0 | [`v4.0.0`](https://github.com/chainguard-actions/mikepenz-xray-action/tree/v4.0.0) | [`b52d73a`](https://github.com/mikepenz/xray-action/commit/b52d73af8012b21cefeb2dfe8f77e35a3b735e3b) | [`HARDENING.md`](https://github.com/chainguard-actions/mikepenz-xray-action/blob/v4.0.0/HARDENING.md) |
+| v4.0.1 | [`v4.0.1`](https://github.com/chainguard-actions/mikepenz-xray-action/tree/v4.0.1) | [`25ef4a0`](https://github.com/mikepenz/xray-action/commit/25ef4a01d6e2e5b0fcafa75fa23d3412af39f2af) | [`HARDENING.md`](https://github.com/chainguard-actions/mikepenz-xray-action/blob/v4.0.1/HARDENING.md) |
+| v4.1.0 | [`v4.1.0`](https://github.com/chainguard-actions/mikepenz-xray-action/tree/v4.1.0) | [`5022d99`](https://github.com/mikepenz/xray-action/commit/5022d9947f271e229316f00351bf7ace153d7e95) | [`HARDENING.md`](https://github.com/chainguard-actions/mikepenz-xray-action/blob/v4.1.0/HARDENING.md) |
+| v4.1.1 | [`v4.1.1`](https://github.com/chainguard-actions/mikepenz-xray-action/tree/v4.1.1) | [`2b26808`](https://github.com/mikepenz/xray-action/commit/2b268086cd2fc5a78bbada2d791286c96077f44b) | [`HARDENING.md`](https://github.com/chainguard-actions/mikepenz-xray-action/blob/v4.1.1/HARDENING.md) |
+| v4.2.0 | [`v4.2.0`](https://github.com/chainguard-actions/mikepenz-xray-action/tree/v4.2.0) | [`93fcac9`](https://github.com/mikepenz/xray-action/commit/93fcac936537e41c08c7191229e6106ae511f0da) | [`HARDENING.md`](https://github.com/chainguard-actions/mikepenz-xray-action/blob/v4.2.0/HARDENING.md) |
 
 ## Privacy
 
